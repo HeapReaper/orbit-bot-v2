@@ -1,11 +1,9 @@
 import { Client, Events, GatewayIntentBits, Collection, MessageFlags } from "discord.js";
 import fs from "node:fs";
 import path from "node:path";
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+import cron from "node-cron";
 
-client.on(Events.ClientReady, () => {
-  console.log(`Logged in as ${client.user.tag}!`);
-});
+const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 // Loading commands from the commands folder
 client.commands = new Collection();
@@ -74,5 +72,30 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
   }
 });
+
+// Loading tasks
+const tasksPath = path.join(__dirname, "tasks");
+
+if (fs.existsSync(tasksPath)) {
+  const taskFiles = fs.readdirSync(tasksPath).filter((file) => file.endsWith(".ts"));
+
+  for (const file of taskFiles) {
+    const filePath = path.join(tasksPath, file);
+
+    const taskModule = await import(filePath);
+    const task = taskModule.default;
+
+    if (!task?.name || !task?.schedule || !task?.execute) {
+      console.log(
+        `[WARNING] The task at ${filePath} is missing a required "name", "schedule" or "execute" property.`,
+      );
+      continue;
+    }
+
+    cron.schedule(task.schedule, task.execute);
+
+    console.log(`Loaded task: ${task.name} (${task.schedule})`);
+  }
+}
 
 client.login(process.env.DISCORD_TOKEN);
