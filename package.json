@@ -1,0 +1,22 @@
+{
+  "name": "orbit-bot-v2",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "ssh://git@codeberg.org/KlikBit/orbit-bot-v2.git"
+  },
+  "keywords": [
+    "bot",
+    "discord"
+  ],
+  "author": "HeapReaper",
+  "license": "ISC",
+  "dependencies": {
+    "discord.js": "^14.27.0"
+  }
+}
