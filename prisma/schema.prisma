@@ -1,0 +1,992 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model AntiBotSettings {
+  id                   Int      @id @default(autoincrement())
+  guildId              String   @unique @map("guild_id") @db.VarChar(22)
+  enabled              Boolean  @default(false)
+  timeWindow           Int      @default(10) @map("time_window")
+  channelLimit         Int      @default(3) @map("channel_limit")
+  punishment           String   @default("none") @db.VarChar(20)
+  forbiddenWords       Json?    @map("forbidden_words")
+  forbiddenUsernames   Json?    @map("forbidden_usernames")
+  notificationChannel  String?  @map("notification_channel") @db.VarChar(22)
+  jailRole             String?  @map("jail_role") @db.VarChar(22)
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+  blockInvites         Boolean  @default(false) @map("block_invites")
+  blockNSFWInvites     Boolean  @default(false) @map("block_nsfw_invites")
+  excludeAdmins        Boolean  @default(false) @map("exclude_admins")
+  messageLimit         Int      @default(8) @map("message_limit")
+  mentionLimit         Int      @default(5) @map("mention_limit")
+  minAccountAgeDays    Int      @default(7) @map("min_account_age_days")
+  raidThreshold        Int      @default(5) @map("raid_threshold")
+  newAccountAction     String   @default("none") @map("new_account_action")
+  blockZalgo           Boolean  @default(true) @map("block_zalgo")
+  blockDuplicates      Boolean  @default(true) @map("block_duplicates")
+  deleteMessagesOnKick Boolean  @default(false) @map("delete_messages_on_kick")
+  deleteMessagesOnBan  Boolean  @default(false) @map("delete_messages_on_ban")
+  deleteMessagesDays   Int      @default(1) @map("delete_messages_days")
+  forbiddenPatterns    String[] @default([]) @map("forbidden_patterns")
+  csamProtection       Boolean  @default(true) @map("csam_protection")
+
+  @@map("anti_bot_settings")
+}
+
+model AutoMessage {
+  id           String    @id @default(uuid())
+  guildId      String    @map("guild_id") @db.VarChar(22)
+  messageType  String    @default("") @map("message_type") @db.VarChar(7)
+  scheduleType String    @default("daily") @map("schedule_type") @db.VarChar(10)
+  monthlyDate  Int?      @map("monthly_date")
+  lastSentAt   DateTime? @map("last_sent_at")
+  message      String    @db.Text
+  embed        Json?     @default("{}") @db.Json
+  channel      String    @db.VarChar(22)
+  time         String    @db.VarChar(5)
+  days         Json
+  enabled      Boolean   @default(true)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @default(now()) @map("updated_at")
+
+  @@map("auto_message")
+}
+
+model AutoRoleSettings {
+  id        Int      @id @default(autoincrement())
+  guildId   String   @unique @map("guild_id")
+  autoRoles Json?    @map("auto_roles")
+  enabled   Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("auto_role_settings")
+}
+
+model Birthday {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  guildId   String   @map("guild_id") @db.VarChar(22)
+  userId    String   @map("user_id") @db.VarChar(22)
+  birthdate DateTime @db.Date
+
+  @@map("birthday")
+}
+
+model BirthdaySettings {
+  id          Int      @id @default(autoincrement())
+  guildId     String   @unique(map: "birthday_settings_guild_id_unique") @map("guild_id") @db.VarChar(22)
+  channel     String   @db.VarChar(22)
+  messageType String   @default("") @map("message_type") @db.VarChar(7)
+  message     String   @db.Text
+  embed       Json?    @default("{}") @db.Json
+  time        String   @db.VarChar(5)
+  enabled     Boolean
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("birthday_settings")
+}
+
+model BotLog {
+  id        Int      @id @default(autoincrement())
+  type      String
+  message   String
+  timestamp DateTime @default(now())
+
+  @@map("bot_log")
+}
+
+model BotSettings {
+  id              Int      @id @default(autoincrement())
+  guildId         String   @unique(map: "bot_settings_guild_id_unique") @map("guild_id") @db.VarChar(22)
+  nickname        String?  @db.VarChar(50)
+  language        String?  @db.VarChar(3)
+  updatesChannel  String?  @map("updates_channel") @db.VarChar(22)
+  timezone        String?  @db.VarChar(22)
+  primaryColor    String?  @map("primary_color") @db.VarChar(22)
+  secondaryColor  String?  @map("secondary_color") @db.VarChar(22)
+  createdAt       DateTime @default(now()) @map("created_at")
+  showInGuildList Boolean  @default(true) @map("show_in_guild_list")
+
+  @@map("bot_settings")
+}
+
+model BumpReminderSettings {
+  id                      Int      @id @default(autoincrement())
+  guildId                 String   @unique @map("guild_id") @db.VarChar(22)
+  channel                 String   @db.VarChar(22)
+  messageType             String   @default("") @map("message_type") @db.VarChar(7)
+  message                 String   @default("") @db.Text
+  embed                   Json?    @default("{}") @db.Json
+  interval                Int
+  enabled                 Int      @default(1)
+  createdAt               DateTime @default(now()) @map("created_at")
+  xpBoost                 Int      @default(0) @map("xp_boost")
+  rewardRole              String?  @map("reward_role") @db.VarChar(22)
+  boostLeaderboard        Boolean  @default(false) @map("boost_leaderboard")
+  leaderboardAutoUpdates  Boolean  @default(false) @map("leaderboard_auto_updates")
+  leaderboardChannel      String?  @map("leaderboard_channel") @db.VarChar(22)
+  autoLeaderboardInterval String?  @map("auto_leaderboard_interval") @db.VarChar(32)
+
+  @@map("bump_reminder_settings")
+}
+
+model ChannelOfFame {
+  id        Int      @id @default(autoincrement())
+  guildId   String   @unique @map("guild_id")
+  channel   String?  @db.VarChar(22)
+  emoji     String?  @db.VarChar(10)
+  amount    Int      @default(0)
+  enabled   Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("channel_of_fame")
+}
+
+model DashboardLog {
+  id        Int      @id @default(autoincrement())
+  guildId   String   @map("guild_id")
+  type      String
+  message   String
+  timestamp DateTime @default(now())
+
+  @@index([guildId])
+  @@map("dashboard_log")
+}
+
+model GiveawaySettings {
+  id        Int      @id @default(autoincrement())
+  guildId   String   @unique @map("guild_id")
+  channel   String?  @db.VarChar(22)
+  enabled   Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("giveaway_settings")
+}
+
+model GuildInviteSettings {
+  id                  Int                   @id @default(autoincrement())
+  guildId             String                @unique @map("guild_id")
+  enabled             Boolean               @default(false)
+  createdAt           DateTime              @default(now()) @map("created_at")
+  InviteTrackerInvite InviteTrackerInvite[]
+
+  @@map("guild_invite_settings")
+}
+
+model GuildLog {
+  id        Int      @id @default(autoincrement())
+  guildId   String   @map("guild_id")
+  type      String
+  message   String
+  timestamp DateTime @default(now())
+
+  @@index([guildId])
+  @@map("guild_log")
+}
+
+model IntroductionSettings {
+  guildId     String   @id @map("guild_id")
+  enabled     Boolean  @default(false)
+  channel     String?
+  maxMessages Int      @default(1) @map("max_messages")
+  messageType String   @default("") @map("message_type") @db.VarChar(7)
+  embed       Json?    @default("{}") @db.Json
+  autoReply   String?  @map("auto_reply")
+  autoEmoji   String?  @map("auto_emoji")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  autoDelete  Boolean  @default(false) @map("auto_delete")
+
+  @@map("introduction_settings")
+}
+
+model InviteTrackerInvite {
+  id                  Int                 @id @default(autoincrement())
+  guildId             String              @map("guild_id")
+  inviteCode          String              @unique @map("invite_code")
+  inviteType          String?             @map("invite_type")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  GuildInviteSettings GuildInviteSettings @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  @@index([guildId])
+  @@map("invite_tracker_invite")
+}
+
+model KickWatcher {
+  id        Int      @id @default(autoincrement())
+  guildId   String   @unique(map: "guild_id_kick") @map("guild_id") @db.VarChar(22)
+  channel   String   @db.VarChar(22)
+  users     Json
+  enabled   Boolean
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("kick_watcher")
+}
+
+model LeaveMessageSettings {
+  id          Int      @id @default(autoincrement())
+  guildId     String   @unique(map: "leave_message_settings_guild_id_unique") @map("guild_id") @db.VarChar(22)
+  messageType String   @default("text") @map("message_type") @db.VarChar(7)
+  messages    Json?    @map("messages")
+  embed       Json?    @default("{}") @db.Json
+  channel     String?  @db.VarChar(22)
+  enabled     Int
+  randomize   Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("leave_message_settings")
+}
+
+model LevelingSettings {
+  id                 Int      @id @default(autoincrement())
+  guildId            String   @unique @map("guild_id")
+  channel            String?  @db.VarChar(22)
+  levelRoles         Json?    @map("level_roles")
+  xpRate             Float    @default(200) @map("xp_rate")
+  enabled            Boolean  @default(false)
+  createdAt          DateTime @default(now()) @map("created_at")
+  curveExponent      Float    @default(2.65) @map("curve_exponent")
+  xpPerMessage       Int      @default(10) @map("xp_per_message")
+  xpMessageGainSpeed String   @default("oneTimeAMinute") @map("xp_message_gain_speed")
+  xpPerVoice         Int      @default(5) @map("xp_per_voice")
+  xpVoiceGainSpeed   String   @default("everyMinute") @map("xp_voice_gain_speed")
+  roleType           String   @default("1-10") @map("role_type")
+  deleteXpOnLeave    Boolean  @default(true) @map("delete_xp_on_leave")
+
+  @@map("leveling_settings")
+}
+
+model LoggingSettings {
+  id        Int      @id @default(autoincrement())
+  guildId   String   @unique @map("guild_id")
+  channel   String?  @db.VarChar(22)
+  events    Json?
+  enabled   Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("logging_settings")
+}
+
+model Migration {
+  id    Int      @id @default(autoincrement())
+  name  String
+  runAt DateTime @default(now()) @map("run_at")
+
+  @@map("migration")
+}
+
+model MinecraftSettings {
+  guildId       String   @id @map("guild_id")
+  enabled       Boolean  @default(false)
+  ip            String
+  port          Int      @default(25565)
+  notifyEnabled Boolean  @default(false) @map("notify_enabled")
+  channel       String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("minecraft_settings")
+}
+
+model PictureContestItem {
+  id                     Int                    @id @default(autoincrement())
+  guildId                String                 @map("guild_id")
+  name                   String                 @default("New Contest")
+  contestChannel         String                 @map("contest_channel")
+  announceChannel        String                 @map("announce_channel")
+  voteEmoji              String                 @default("❓") @map("vote_emoji")
+  voteType               String                 @default("highest") @map("vote_type")
+  requiredVotes          Int?                   @map("required_votes")
+  schedule               String                 @default("end_month")
+  enabled                Boolean                @default(true)
+  createdAt              DateTime               @default(now()) @map("created_at")
+  PictureContestSettings PictureContestSettings @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  @@index([guildId])
+  @@map("picture_contest_item")
+}
+
+model PictureContestSettings {
+  id                 Int                  @id @default(autoincrement())
+  guildId            String               @unique @map("guild_id")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  PictureContestItem PictureContestItem[]
+
+  @@map("picture_contest_settings")
+}
+
+model PremiumGuild {
+  id          Int       @id @default(autoincrement())
+  guildId     String    @unique @map("guild_id") @db.VarChar(22)
+  premium     Boolean   @default(false)
+  trialEndsAt DateTime? @map("trial_ends_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@map("premium_guild")
+}
+
+model TicketSettings {
+  id          Int      @id @default(autoincrement())
+  guildId     String   @unique(map: "ticket_settings_guild_id_unique") @map("guild_id") @db.VarChar(22)
+  channel     String?  @db.VarChar(22)
+  channelConf String?  @map("channel_conf") @db.VarChar(22)
+  enabled     Int
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("ticket_settings")
+}
+
+model TwitchWatcher {
+  id        Int      @id @default(autoincrement())
+  guildId   String   @unique(map: "twitch_watcher_guild_id_unique") @map("guild_id") @db.VarChar(22)
+  channel   String   @db.VarChar(22)
+  users     Json
+  enabled   Boolean
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("twitch_watcher")
+}
+
+model UserAction {
+  id        Int      @id @default(autoincrement())
+  guildId   String   @map("guild_id")
+  userId    String   @map("user_id")
+  action    String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("user_action")
+}
+
+model WelcomeMessageSettings {
+  id            Int      @id @default(autoincrement())
+  guildId       String   @unique(map: "welcome_message_settings_guild_id_unique") @map("guild_id") @db.VarChar(22)
+  messageType   String   @default("text") @map("message_type") @db.VarChar(7)
+  messages      Json?
+  embed         Json?    @default("{}") @db.Json
+  channel       String?  @db.VarChar(22)
+  enabled       Int
+  randomize     Boolean  @default(false)
+  deleteMessage Boolean  @default(false) @map("delete_message")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("welcome_message_settings")
+}
+
+model WelcomeMessagesSended {
+  id        Int    @id @default(autoincrement())
+  guildId   String @map("guild_id")
+  userId    String @map("user_id")
+  channelId String @map("channel_id")
+  messageId String @map("message_io")
+
+  @@map("welcome_messages_sended")
+}
+
+model YoutubeWatcher {
+  id        Int                     @id @default(autoincrement())
+  guildId   String                  @unique(map: "youtube_watcher_guild_id_unique") @map("guild_id") @db.VarChar(22)
+  enabled   Boolean
+  createdAt DateTime                @default(now()) @map("created_at")
+  channels  YoutubeWatcherChannel[]
+
+  @@map("youtube_watcher")
+}
+
+model YoutubeWatcherChannel {
+  id             Int            @id @default(autoincrement())
+  watcherId      Int            @map("watcher_id")
+  youtubeChannel String         @map("youtube_channel")
+  discordChannel String         @map("discord_channel") @db.VarChar(22)
+  createdAt      DateTime       @default(now()) @map("created_at")
+  watcher        YoutubeWatcher @relation(fields: [watcherId], references: [id], onDelete: Cascade)
+
+  @@map("youtube_watcher_channel")
+}
+
+model LevelingData {
+  id        Int      @id @default(autoincrement())
+  guildId   String   @map("guild_id")
+  userId    String   @map("user_id")
+  xp        Int      @default(0)
+  level     Int      @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([guildId, userId])
+  @@map("leveling_data")
+}
+
+model Leveling {
+  id        Int      @id @default(autoincrement())
+  guildId   String   @map("guild_id")
+  userId    String   @map("user_id")
+  xp        Int      @default(0)
+  level     Int      @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([guildId, userId])
+  @@map("leveling")
+}
+
+model Giveaway {
+  id                    Int                   @id @default(autoincrement())
+  winners               Int
+  prize                 String
+  active                Boolean               @default(true)
+  createdAt             DateTime              @default(now()) @map("created_at")
+  endsAt                DateTime              @map("ends_at")
+  extraRules            String                @map("extra_rules")
+  guildId               String                @map("guild_id")
+  messageId             String?               @map("message_id")
+  giveaway_participants GiveawayParticipant[]
+
+  @@index([guildId])
+  @@map("giveaway")
+}
+
+model GiveawayParticipant {
+  winner     Boolean  @default(false)
+  giveawayId Int      @map("giveaway_id")
+  userId     String   @map("user_id")
+  giveaways  Giveaway @relation(fields: [giveawayId], references: [id])
+
+  @@id([giveawayId, userId])
+  @@map("giveaway_participant")
+}
+
+model Account {
+  type              String
+  provider          String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?    @map("expires_at")
+  token_type        String? @map("token_type")
+  scope             String?
+  id_token          String? @map("id_token")
+  session_state     String? @map("session_state")
+  providerAccountId String  @map("provider_account_id")
+  userId            String  @map("user_id")
+  id                String  @id
+  User              User    @relation(fields: [userId], references: [id])
+
+  @@unique([provider, providerAccountId])
+  @@index([userId], map: "Account_userId_fkey")
+  @@map("account")
+}
+
+model Session {
+  id           String   @id
+  expires      DateTime
+  userId       String   @map("user_id")
+  sessionToken String   @unique @map("session_token")
+  User         User     @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "Session_userId_fkey")
+  @@map("session")
+}
+
+model User {
+  id            String    @id
+  name          String?
+  email         String?   @unique
+  image         String?
+  emailVerified DateTime? @map("email_verified")
+  Account       Account[]
+  Session       Session[]
+
+  @@map("user")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_token")
+}
+
+model Streak {
+  id         Int      @id @default(autoincrement())
+  streak     Int
+  userId     String   @map("user_id") @db.VarChar(22)
+  lastActive DateTime @map("last_active")
+  guildId    String?  @map("guild_id") @db.VarChar(22)
+
+  @@unique([userId, guildId])
+  @@map("streak")
+}
+
+model StreakSettings {
+  id      Int     @id @default(autoincrement())
+  guildId String  @unique @map("guild_id")
+  channel String  @db.VarChar(22)
+  role    String? @db.VarChar(22)
+  enabled Boolean
+
+  @@map("streak_settings")
+}
+
+model BoostSpotlightSettings {
+  id        Int      @id @default(autoincrement())
+  guildId   String   @unique(map: "boost_spotlight_settings_guild_id_unique") @map("guild_id") @db.VarChar(22)
+  messages  Json?
+  channel   String?  @db.VarChar(22)
+  enabled   Boolean
+  randomize Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("boost_spotlight_settings")
+}
+
+model Reminder {
+  id        Int      @id @default(autoincrement())
+  message   String
+  createdAt DateTime @default(now()) @map("created_at")
+  guildId   String?  @map("guild_id") @db.VarChar(32)
+  isActive  Boolean  @default(true) @map("is_active")
+  remindAt  DateTime @map("remind_at")
+  userId    String   @map("user_id") @db.VarChar(32)
+  channelId String   @map("channel_id") @db.VarChar(32)
+
+  @@map("reminder")
+}
+
+model TimeKeeperSettings {
+  id        Int      @id @default(autoincrement())
+  guildId   String   @unique(map: "time_keeper_settings_guild_id_unique") @map("guild_id") @db.VarChar(22)
+  enabled   Boolean
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("time_keeper_settings")
+}
+
+model ServerAnniversarySettings {
+  id          Int      @id @default(autoincrement())
+  guildId     String   @unique(map: "server_anniversary_settings_guild_id_unique") @map("guild_id") @db.VarChar(22)
+  messageType String   @default("") @map("message_type") @db.VarChar(7)
+  message     String   @db.Text
+  embed       Json?    @default("{}") @db.Json
+  channel     String?  @db.VarChar(22)
+  enabled     Boolean
+  randomize   Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  time        String   @db.VarChar(5)
+
+  @@map("server_anniversary_settings")
+}
+
+model MessageGlue {
+  id        Int      @id @default(autoincrement())
+  guildId   String   @map("guild_id") @db.VarChar(22)
+  message   String
+  channel   String   @db.VarChar(22)
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  @@map("message_glue")
+}
+
+model ServerBackupSettings {
+  id            Int             @id @default(autoincrement())
+  guildId       String          @unique @map("guild_id") @db.VarChar(22)
+  channel       String          @db.VarChar(22)
+  enabled       Boolean         @default(false)
+  frequency     String          @db.VarChar(10)
+  time          String          @db.VarChar(5)
+  content       Json?
+  createdAt     DateTime        @default(now()) @map("created_at")
+  ServerBackups ServerBackups[]
+
+  @@map("server_backup_settings")
+}
+
+model ServerBackups {
+  id                   Int                  @id @default(autoincrement())
+  guildId              String               @map("guild_id") @db.VarChar(22)
+  backup               Json
+  createdAt            DateTime             @default(now()) @map("created_at")
+  ServerBackupSettings ServerBackupSettings @relation(fields: [guildId], references: [guildId])
+
+  @@index([guildId], map: "ServerBackups_guildId_fkey")
+  @@map("server_backups")
+}
+
+model MessageReportSettings {
+  id        Int      @id @default(autoincrement())
+  guildId   String   @unique @map("guild_id")
+  enabled   Boolean  @default(false)
+  channel   String   @db.VarChar(22)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("message_report_settings")
+}
+
+model MessageReports {
+  id        Int      @id @default(autoincrement())
+  guildId   String   @map("guild_id")
+  userId    String   @map("user_id") @db.VarChar(22)
+  message   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([guildId, userId])
+  @@map("message_reports")
+}
+
+model ModLinkSettings {
+  id            Int      @id @default(autoincrement())
+  guildId       String   @unique @map("guild_id") @db.VarChar(22)
+  enabled       Boolean  @default(false)
+  channel       String?  @db.VarChar(22)
+  syncedGuilds  String[] @default([]) @map("synced_guilds")
+  actionsToSync String[] @default([]) @map("actions_to_sync")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("mod_link_settings")
+}
+
+model Bumps {
+  id       Int      @id @default(autoincrement())
+  guildId  String   @map("guild_id") @db.VarChar(22)
+  userId   String   @map("user_id") @db.VarChar(22)
+  bumpedAt DateTime @default(now()) @map("bumped_at")
+
+  @@map("bumps")
+}
+
+model GuildApiSettings {
+  id        Int      @id @default(autoincrement())
+  guildId   String   @unique @map("guild_id") @db.VarChar(22)
+  apiKey    String   @map("api_key") @db.Text
+  enabled   Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("guild_api_settings")
+}
+
+model DonationsSettings {
+  id       Int     @id @default(autoincrement())
+  guildId  String  @unique @map("guild_id")
+  enabled  Boolean @default(false)
+  currency String? @db.VarChar(4)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("donations_settings")
+}
+
+model DonationGoals {
+  id            Int         @id @default(autoincrement())
+  guildId       String      @map("guild_id") @db.VarChar(22)
+  messageId     String      @map("message_id") @db.VarChar(22)
+  authorId      String      @map("author_id") @db.VarChar(22)
+  channelId     String      @map("channel_id") @db.VarChar(22)
+  title         String      @db.VarChar(30)
+  description   String      @db.VarChar(120)
+  goalAmount    Int         @map("goal_amount")
+  stopOnGoal    Boolean     @default(true) @map("stop_on_goal")
+  notifyChannel String      @map("notify_channel") @db.VarChar(22)
+  mentionRole   String?     @map("mention_role") @db.VarChar(22)
+  donations     Donations[] @relation("GoalDonations") // one-to-many
+
+  @@map("donations_goals")
+}
+
+model Donations {
+  id       Int    @id @default(autoincrement())
+  guildId  String @map("guild_id") @db.VarChar(22)
+  authorId String @map("author_id") @db.VarChar(22)
+  goalId   Int    @map("goal_id") // Foreign key
+  amount   Int
+
+  goal DonationGoals @relation("GoalDonations", fields: [goalId], references: [id])
+
+  @@map("donations")
+}
+
+model ServerStatsSettings {
+  id      Int     @id @default(autoincrement())
+  guildId String  @unique @map("guild_id")
+  enabled Boolean @default(false)
+
+  @@map("server_stats_settings")
+}
+
+model ServerStats {
+  id      Int    @id @default(autoincrement())
+  guildId String @unique @map("guild_id")
+
+  memberCountChannelId       String? @map("member_count_channel_id") @db.VarChar(22)
+  boostCountChannelId        String? @map("boost_count_channel_id") @db.VarChar(22)
+  botCountChannelId          String? @map("bot_count_channel_id") @db.VarChar(22)
+  onlineMemberCountChannelId String? @map("online_member_count_channel_id") @db.VarChar(22)
+  channelCountChannelId      String? @map("channel_count_channel_id") @db.VarChar(22)
+  rolesCountChannelId        String? @map("roles_count_channel_id") @db.VarChar(22)
+
+  @@map("server_stats")
+}
+
+model RoleKickSettings {
+  id      Int     @id @default(autoincrement())
+  enabled Boolean
+  guildId String  @unique @map("guild_id")
+  channel String  @db.VarChar(22)
+  role    String  @db.VarChar(22)
+
+  @@map("role_kick_settings")
+}
+
+model ChessLink {
+  id            Int      @id @default(autoincrement())
+  userId        String   @unique @map("user_id") @db.VarChar(22)
+  chessUsername String   @map("chess_username") @db.VarChar(50)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("chess_link")
+}
+
+model ChessSettings {
+  id        Int      @id @default(autoincrement())
+  guildId   String   @unique(map: "chess_settings_guild_id_unique") @map("guild_id") @db.VarChar(22)
+  enabled   Boolean
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("chess_settings")
+}
+
+model LichessLink {
+  id              Int      @id @default(autoincrement())
+  userId          String   @unique @map("user_id") @db.VarChar(22)
+  lichessUsername String   @map("lichess_username") @db.VarChar(50)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@map("lichess_link")
+}
+
+model LichessSettings {
+  id        Int      @id @default(autoincrement())
+  guildId   String   @unique(map: "lichess_settings_guild_id_unique") @map("guild_id") @db.VarChar(22)
+  enabled   Boolean
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("lichess_settings")
+}
+
+model NumberGuesserGame {
+  id              Int       @id @default(autoincrement())
+  guildId         String    @map("guild_id") @db.VarChar(22)
+  channelId       String    @map("channel_id") @db.VarChar(22)
+  minNumber       Int       @default(1) @map("min_number")
+  maxNumber       Int       @default(100) @map("max_number")
+  secretNumber    Int       @map("secret_number")
+  active          Boolean   @default(true)
+  winnerId        String?   @map("winner_id") @db.VarChar(22)
+  guessCount      Int       @default(0) @map("guess_count")
+  messageId       String?   @map("message_id") @db.VarChar(22)
+  description     String?   @db.Text
+  cooldownSeconds Int       @default(0) @map("cooldown_seconds")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  endedAt         DateTime? @map("ended_at")
+
+  @@index([guildId, channelId])
+  @@map("number_guesser_game")
+}
+
+model RssSettings {
+  id        Int      @id @default(autoincrement())
+  guildId   String   @unique @map("guild_id")
+  enabled   Boolean  @default(false)
+  channelId String?  @map("channel_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  Rss       Rss[]
+
+  @@map("rss_settings")
+}
+
+model Rss {
+  id          Int         @id @default(autoincrement())
+  guildId     String      @map("guild_id")
+  url         String      @map("url")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  RssSettings RssSettings @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+  channelId   String?     @map("channel_id")
+
+  @@index([guildId])
+  @@map("rss")
+}
+
+model CountingGameSettings {
+  id      Int     @id @default(autoincrement())
+  guildId String  @unique(map: "guild_id_counting_game_settings") @map("guild_id") @db.VarChar(22)
+  channel String  @db.VarChar(22)
+  enabled Boolean @default(true)
+
+  currentCount Int     @default(0) @map("current_count")
+  highScore    Int     @default(0) @map("high_score")
+  lastUserId   String? @map("last_user_id") @db.VarChar(22)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("counting_game_settings")
+}
+
+model CountingGame {
+  id      Int    @id @default(autoincrement())
+  guildId String @unique(map: "guild_id_counting_game") @map("guild_id") @db.VarChar(22)
+  counter Int
+
+  @@map("counting_game")
+}
+
+model CountingUserStats {
+  id      Int    @id @default(autoincrement())
+  guildId String @map("guild_id") @db.VarChar(22)
+  userId  String @map("user_id") @db.VarChar(22)
+
+  correctCounts Int @default(0) @map("correct_counts")
+  failCounts    Int @default(0) @map("fail_counts")
+
+  highestNumber Int @default(0) @map("highest_number")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([guildId, userId], map: "guild_user_unique")
+  @@map("counting_user_stats")
+}
+
+model QotdSettings {
+  id              Int       @id @default(autoincrement())
+  guildId         String    @unique @map("guild_id") @db.VarChar(22)
+  channel         String?   @db.VarChar(22)
+  time            String    @default("12:00") @db.VarChar(5)
+  scheduleType    String    @default("daily") @map("schedule_type") @db.VarChar(10)
+  days            Json      @default("[]")
+  monthlyDate     Int?      @map("monthly_date")
+  enabled         Boolean   @default(true)
+  aiPrompt        String    @default("") @map("ai_prompt") @db.Text
+  lastSentAt      DateTime? @map("last_sent_at")
+  recentQuestions Json      @default("[]") @map("recent_questions")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("qotd_settings")
+}
+
+model WheelSpinSettings {
+  id                Int      @id @default(autoincrement())
+  guildId           String   @unique(map: "guild_id_wheel_spin_settings") @map("guild_id") @db.VarChar(22)
+  enabled           Boolean
+  permissionMembers Boolean  @map("permission_members")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  @@map("wheel_spin_settings")
+}
+
+model DhBumpReminderSettings {
+  id                      Int      @id @default(autoincrement())
+  guildId                 String   @unique @map("guild_id") @db.VarChar(22)
+  channel                 String   @db.VarChar(22)
+  messageType             String   @default("") @map("message_type") @db.VarChar(7)
+  message                 String   @default("") @db.Text
+  embed                   Json?    @default("{}") @db.Json
+  interval                Int
+  enabled                 Int      @default(1)
+  createdAt               DateTime @default(now()) @map("created_at")
+  xpBoost                 Int      @default(0) @map("xp_boost")
+  rewardRole              String?  @map("reward_role") @db.VarChar(22)
+  boostLeaderboard        Boolean  @default(false) @map("boost_leaderboard")
+  leaderboardAutoUpdates  Boolean  @default(false) @map("leaderboard_auto_updates")
+  leaderboardChannel      String?  @map("leaderboard_channel") @db.VarChar(22)
+  autoLeaderboardInterval String?  @map("auto_leaderboard_interval") @db.VarChar(32)
+
+  @@map("dh_bump_reminder_settings")
+}
+
+model DhBumps {
+  id       Int      @id @default(autoincrement())
+  guildId  String   @map("guild_id") @db.VarChar(22)
+  /// Null when the bump could not be attributed to a member. The row is still written
+  /// because the reminder times off it; leaderboards filter these out.
+  userId   String?  @map("user_id") @db.VarChar(22)
+  bumpedAt DateTime @default(now()) @map("bumped_at")
+
+  @@map("dh_bumps")
+}
+
+model ModerationSettings {
+  id                  Int                @id @default(autoincrement())
+  guildId             String             @unique @map("guild_id") @db.VarChar(22)
+  enabled             Boolean            @default(false)
+  logChannel          String?            @map("log_channel") @db.VarChar(22)
+  muteRole            String?            @map("mute_role") @db.VarChar(22)
+  dmOnPunishment      Boolean            @default(true) @map("dm_on_punishment")
+  dmMessage           String?            @map("dm_message") @db.Text
+  ignoreAdmins        Boolean            @default(true) @map("ignore_admins")
+  ignoreBots          Boolean            @default(true) @map("ignore_bots")
+  immuneRoles         String[]           @default([]) @map("immune_roles")
+  ignoredChannels     String[]           @default([]) @map("ignored_channels")
+  deleteMessageDays   Int                @default(1) @map("delete_message_days")
+  defaultMuteDuration Int                @default(60) @map("default_mute_duration")
+  warnExpiryDays      Int                @default(30) @map("warn_expiry_days")
+  escalations         Json?              @default("[]") @map("escalations")
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+  filters             ModerationFilter[]
+
+  @@map("moderation_settings")
+}
+
+model ModerationFilter {
+  id                 Int                @id @default(autoincrement())
+  guildId            String             @map("guild_id") @db.VarChar(22)
+  type               String             @db.VarChar(30)
+  enabled            Boolean            @default(false)
+  alert              Boolean            @default(false)
+  log                Boolean            @default(true)
+  delete             Boolean            @default(true)
+  hardAction         String             @default("none") @map("hard_action") @db.VarChar(20)
+  hardActionDuration Int                @default(0) @map("hard_action_duration")
+  thresholdMaximum   Int                @default(3) @map("threshold_maximum")
+  thresholdDuration  Int                @default(60) @map("threshold_duration")
+  limit              Int                @default(5)
+  window             Int                @default(10)
+  minimumLength      Int                @default(10) @map("minimum_length")
+  entries            String[]           @default([])
+  entriesMode        String             @default("blacklist") @map("entries_mode") @db.VarChar(10)
+  ignoredChannels    String[]           @default([]) @map("ignored_channels")
+  ignoredRoles       String[]           @default([]) @map("ignored_roles")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+  settings           ModerationSettings @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  @@unique([guildId, type])
+  @@map("moderation_filters")
+}
+
+model ModerationCase {
+  id          Int       @id @default(autoincrement())
+  guildId     String    @map("guild_id") @db.VarChar(22)
+  userId      String    @map("user_id") @db.VarChar(22)
+  moderatorId String?   @map("moderator_id") @db.VarChar(22)
+  action      String    @db.VarChar(20)
+  reason      String    @db.Text
+  filterType  String?   @map("filter_type") @db.VarChar(30)
+  duration    Int       @default(0)
+  expiresAt   DateTime? @map("expires_at")
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([guildId, userId])
+  @@index([active, expiresAt])
+  @@map("moderation_cases")
+}
