@@ -1,4 +1,4 @@
-import { Events, type GuildMember, type Message, type TextChannel } from 'discord.js';
+import { Events, escapeMarkdown, type GuildMember, type Message, type TextChannel } from 'discord.js';
 import { defineEvent, type EmbedData } from '../../types';
 import { prisma } from '../../lib/prisma';
 import { GuildLogger } from '../../lib/guildLog';
@@ -36,14 +36,20 @@ async function memberAdd(member: GuildMember) {
     return;
   }
 
+  const mention = member.user.toString();
+  const plainName = escapeMarkdown(member.displayName);
+
   let sentMessage: Message;
 
   if (res.messageType === 'embed') {
     if (!res.embed) return;
 
-    sentMessage = await sendEmbed(channel, res.embed as EmbedData, [
-      ['{user}', `<@${member.user.id}>`],
-    ]);
+    sentMessage = await sendEmbed(
+      channel,
+      res.embed as EmbedData,
+      [['{user}', mention]],
+      [['{user}', plainName]]
+    );
   } else {
     if (!res.messages) return;
 
@@ -62,7 +68,7 @@ async function memberAdd(member: GuildMember) {
     const randomIndex = Math.floor(Math.random() * messages.length);
     const messageToSend = messages[randomIndex]!;
 
-    const updatedMessage = messageToSend.replace(/{user}/g, `<@${member.user.id}>`);
+    const updatedMessage = messageToSend.replace(/{user}/g, mention);
 
     // The template is guild-configured; only the joining member may be pinged
     // by it, never @everyone or an arbitrary role.

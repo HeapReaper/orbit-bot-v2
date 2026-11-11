@@ -1,4 +1,4 @@
-import { Events, type TextChannel } from 'discord.js';
+import { Events, escapeMarkdown, type TextChannel, type User } from 'discord.js';
 import { defineEvent, type EmbedData } from '../../types';
 import { GuildLogger } from '../../lib/guildLog';
 import { prisma } from '../../lib/prisma';
@@ -39,10 +39,27 @@ export default defineEvent({
       return;
     }
 
+    // The member already left, so it may be partial and its user uncached:
+    // fetch the user first so we always have a name to show.
+    let user: User = member.user;
+    try {
+      user = await member.client.users.fetch(member.id);
+    } catch {
+      // Keep the (possibly partial) user from the event.
+    }
+
+    const mention = user.toString();
+    const plainName = escapeMarkdown(user.displayName ?? user.username ?? user.id);
+
     if (res.messageType === 'embed') {
       if (!res.embed) return;
 
-      await sendEmbed(channel, res.embed as EmbedData, [['{user}', `<@${member.user.id}>`]]);
+      await sendEmbed(
+        channel,
+        res.embed as EmbedData,
+        [['{user}', mention]],
+        [['{user}', plainName]]
+      );
       return;
     }
 
@@ -64,11 +81,11 @@ export default defineEvent({
       ? messages[Math.floor(Math.random() * messages.length)]!
       : messages[0]!;
 
-    const updatedMessage = messageToSend.replace(/{user}/g, `<@${member.user.id}>`);
+    const updatedMessage = messageToSend.replace(/{user}/g, mention);
 
     await channel.send({
       content: updatedMessage,
-      allowedMentions: { users: [member.user.id] },
+      allowedMentions: { users: [user.id] },
     });
   },
 });
