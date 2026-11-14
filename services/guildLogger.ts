@@ -17,6 +17,7 @@ import {
   AuditLogEvent,
   GuildAuditLogsEntry,
   Guild,
+  AttachmentBuilder,
 } from 'discord.js';
 import { getRedisClient } from '../lib/redis';
 import { prisma } from '../lib/prisma';
@@ -77,7 +78,7 @@ async function isEventEnabled(guildId: string, eventKey: string) {
   return data.enabled && Array.isArray(data.events) && data.events.includes(eventKey);
 }
 
-async function sendLogEmbed(guild: Guild, embed: EmbedBuilder) {
+async function sendLogEmbed(guild: Guild, embed: EmbedBuilder, files: AttachmentBuilder[] = []) {
   const guildId = guild.id;
   const cacheKey = `logging:${guildId}`;
   let settings: any;
@@ -101,13 +102,59 @@ async function sendLogEmbed(guild: Guild, embed: EmbedBuilder) {
   // Dont log if it's debug
   if (process.env.ENVIRONMENT === 'debug') return;
 
-  await (logChannel as TextChannel).send({ embeds: [embed] });
+  await (logChannel as TextChannel).send({ embeds: [embed], files });
 }
 
-async function logIfEnabled(guild: Guild | null, eventKey: string, embed: EmbedBuilder) {
+async function logIfEnabled(
+  guild: Guild | null,
+  eventKey: string,
+  embed: EmbedBuilder,
+  files: AttachmentBuilder[] | (() => Promise<AttachmentBuilder[]>) = []
+) {
   if (!guild) return;
   if (!(await isEventEnabled(guild.id, eventKey))) return;
-  await sendLogEmbed(guild, embed);
+  const resolvedFiles = typeof files === 'function' ? await files() : files;
+  await sendLogEmbed(guild, embed, resolvedFiles);
+}
+
+// Discord's default upload limit for bots/non-boosted guilds is 10 MB
+const MAX_LOG_ATTACHMENT_SIZE = 10 * 1024 * 1024;
+
+/**
+ * Downloads the image attachments of a (deleted) message so they can be re-uploaded
+ * to the logging channel. Discord removes deleted attachments from its CDN shortly
+ * after deletion, so this is best effort: the proxy URL is tried as a fallback.
+ */
+async function downloadImageAttachments(
+  attachments: AttachmentSnapshot[]
+): Promise<AttachmentBuilder[]> {
+  const images = attachments.filter(
+    (a) => a.contentType?.startsWith('image/') && a.size <= MAX_LOG_ATTACHMENT_SIZE
+  );
+
+  const results = await Promise.all(
+    images.map(async (attachment): Promise<AttachmentBuilder | null> => {
+      for (const url of [attachment.url, attachment.proxyURL]) {
+        try {
+          const res = await fetch(url);
+          if (!res.ok) continue;
+          const buffer = Buffer.from(await res.arrayBuffer());
+          // attachment:// references break on spaces/special chars, so sanitize the name
+          const name = (attachment.name ?? `image-${attachment.id}.png`).replace(
+            /[^a-zA-Z0-9._-]/g,
+            '_'
+          );
+          return new AttachmentBuilder(buffer, { name });
+        } catch {
+          // try next url
+        }
+      }
+      Logging.error(`Failed to download deleted attachment ${attachment.id} (${attachment.name})`);
+      return null;
+    })
+  );
+
+  return results.filter((f): f is AttachmentBuilder => f !== null);
 }
 
 // TODO: Add checkbox to Orbit dashboard and check here
@@ -157,28 +204,101 @@ export async function onAuditLogEntryCreate(auditLogEntry: GuildAuditLogsEntry, 
 }
 
 // Messages
-export async function messageDelete(message: Message | PartialMessage) {
-  if (message.partial) {
-    try {
-      message = await message.fetch();
-    } catch (err) {
-      Logging.error(`Failed to fetch partial message: ${err}`);
-      return;
-    }
+// Snapshots of messages so deletes can still be logged when the message is no longer
+// in discord.js' (capped) cache, e.g. after a restart. Discord only sends the message ID
+// on delete, and a deleted message can't be fetched anymore.
+const MESSAGE_SNAPSHOT_TTL = 60 * 60 * 24 * 7; // 7 days
+
+interface AttachmentSnapshot {
+  id: string;
+  name: string;
+  url: string;
+  proxyURL: string;
+  contentType: string | null;
+  size: number;
+}
+
+interface MessageSnapshot {
+  authorId: string;
+  authorName: string;
+  channelId: string;
+  content: string;
+  attachments: AttachmentSnapshot[];
+}
+
+const snapshotKey = (messageId: string) => `logging:msg:${messageId}`;
+
+function toAttachmentSnapshots(message: Message): AttachmentSnapshot[] {
+  return message.attachments.map((a) => ({
+    id: a.id,
+    name: a.name,
+    url: a.url,
+    proxyURL: a.proxyURL,
+    contentType: a.contentType,
+    size: a.size,
+  }));
+}
+
+/** Stores a snapshot of the message if delete logging is enabled for its guild. */
+export async function snapshotMessage(message: Message) {
+  try {
+    if (!message.guild || message.system) return;
+    if (message.author.id === message.client.user.id) return; // skip our own log embeds
+    if (!(await isEventEnabled(message.guild.id, 'message_delete'))) return;
+
+    const snapshot: MessageSnapshot = {
+      authorId: message.author.id,
+      authorName: message.author.username,
+      channelId: message.channelId,
+      content: message.content,
+      attachments: toAttachmentSnapshots(message),
+    };
+    await redis.set(snapshotKey(message.id), JSON.stringify(snapshot), 'EX', MESSAGE_SNAPSHOT_TTL);
+  } catch (err) {
+    Logging.error(`Failed to snapshot message ${message.id}: ${err}`);
   }
+}
 
+async function getMessageSnapshot(messageId: string): Promise<MessageSnapshot | null> {
+  try {
+    const raw = await redis.get(snapshotKey(messageId));
+    return raw ? (JSON.parse(raw) as MessageSnapshot) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function messageDelete(message: Message | PartialMessage) {
   if (!message.guild) return;
+  const guild = message.guild;
 
-  const lang = await getGuildLanguage(message.guild.id);
-  const authorTag = message.author ? `<@${message.author.id}>` : t(lang, 'unknown');
-  const authorName = message.author?.username ?? 'Unknown';
+  // Prefer the cached message; otherwise fall back to our Redis snapshot.
+  // (Fetching a partial deleted message always fails, so we don't try.)
+  const snapshot = message.partial ? await getMessageSnapshot(message.id) : null;
+  redis.del(snapshotKey(message.id)).catch(() => {});
 
+  const authorId = message.author?.id ?? snapshot?.authorId ?? null;
+  const content = message.partial ? (snapshot?.content ?? null) : message.content;
+  const attachments: AttachmentSnapshot[] = message.partial
+    ? (snapshot?.attachments ?? [])
+    : toAttachmentSnapshots(message as Message);
+  const contentKnown = !message.partial || snapshot !== null;
+
+  // Start downloading images immediately: Discord purges deleted attachments from its CDN quickly
+  const imageFilesPromise =
+    attachments.length > 0
+      ? downloadImageAttachments(attachments)
+      : Promise.resolve<AttachmentBuilder[]>([]);
+
+  const lang = await getGuildLanguage(guild.id);
+
+  let resolvedAuthorId = authorId;
   let executorTag: string | null = null;
   let executorName: string | null = null;
 
-  if (message.guild.members.me?.permissions.has('ViewAuditLog')) {
+  if (guild.members.me?.permissions.has('ViewAuditLog')) {
     try {
-      const fetchedLogs = await message.guild.fetchAuditLogs({
+      const fetchedLogs = await guild.fetchAuditLogs({
         limit: 1,
         type: AuditLogEvent.MessageDelete,
       });
@@ -187,12 +307,14 @@ export async function messageDelete(message: Message | PartialMessage) {
 
       if (
         deleteLog &&
-        deleteLog.target?.id === message.author?.id &&
-        deleteLog.extra?.channel?.id === message.channel.id &&
+        (!authorId || deleteLog.target?.id === authorId) &&
+        deleteLog.extra?.channel?.id === message.channelId &&
         Date.now() - deleteLog.createdTimestamp < 5000
       ) {
+        // Audit log tells us the author when we didn't know it
+        resolvedAuthorId ??= deleteLog.target?.id ?? null;
         // Als de executor de auteur zelf is, negeren we de executor (was een handmatige actie van de auteur)
-        if (deleteLog.executor?.id !== message.author?.id) {
+        if (deleteLog.executor?.id !== resolvedAuthorId) {
           executorTag = `<@${deleteLog.executor?.id}>`;
           executorName =
             deleteLog.executor?.displayName ?? deleteLog.executor?.username ?? 'Unknown';
@@ -203,33 +325,58 @@ export async function messageDelete(message: Message | PartialMessage) {
     }
   }
 
+  const authorTag = resolvedAuthorId ? `<@${resolvedAuthorId}>` : t(lang, 'unknown');
+  const authorName =
+    message.author?.username ?? snapshot?.authorName ?? resolvedAuthorId ?? 'Unknown';
+
+  const messageValue = !contentKnown
+    ? t(lang, 'message_content_unavailable')
+    : content && content.length > 0
+      ? content.substring(0, 1000)
+      : t(lang, 'none');
+
   const embed = new EmbedBuilder()
     .setColor(Colors.Red)
     .setTitle(t(lang, 'message_deleted'))
     .addFields(
       { name: t(lang, 'author'), value: authorTag },
-      { name: t(lang, 'channel'), value: `<#${message.channel.id}>` },
-      {
-        name: t(lang, 'message'),
-        value:
-          message.content && message.content.length > 0
-            ? message.content.substring(0, 1000)
-            : t(lang, 'none'),
-      }
+      { name: t(lang, 'channel'), value: `<#${message.channelId}>` },
+      { name: t(lang, 'message'), value: messageValue }
     )
+    .setFooter({ text: `ID: ${message.id}` })
     .setTimestamp();
 
   if (executorTag) {
     embed.addFields({ name: t(lang, 'deleted_by'), value: executorTag });
   }
 
-  // Server/Guild loggin
-  const logMessage = executorName
-    ? `Message by ${authorName} was deleted by ${executorName} in #${'name' in message.channel ? message.channel.name : message.channel.id}: ${message.content}`
-    : `User ${authorName} deleted their own message in #${'name' in message.channel ? message.channel.name : message.channel.id}: ${message.content}`;
+  if (attachments.length > 0) {
+    embed.addFields({
+      name: t(lang, 'moderation_filter_attachments'),
+      value: attachments
+        .map((a) => a.name ?? a.id)
+        .join('\n')
+        .substring(0, 1000),
+    });
+  }
 
-  await addToGuildLog(message.guild.id, 'WARN', logMessage);
-  await logIfEnabled(message.guild, 'message_delete', embed);
+  // Re-upload deleted images to the log channel; show the first one inside the embed
+  const getImageFiles = async () => {
+    const files = await imageFilesPromise;
+    if (files.length > 0) embed.setImage(`attachment://${files[0].name}`);
+    return files;
+  };
+
+  // Server/Guild loggin
+  const channelName =
+    message.channel && 'name' in message.channel ? message.channel.name : message.channelId;
+  const logContent = contentKnown ? content : '[content unavailable]';
+  const logMessage = executorName
+    ? `Message by ${authorName} was deleted by ${executorName} in #${channelName}: ${logContent}`
+    : `User ${authorName} deleted their own message in #${channelName}: ${logContent}`;
+
+  await addToGuildLog(guild.id, 'WARN', logMessage);
+  await logIfEnabled(guild, 'message_delete', embed, getImageFiles);
 }
 
 export async function messagesBulkDelete(messages: any) {
