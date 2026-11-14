@@ -6,30 +6,35 @@ import type { EmbedData } from '../types';
  * @param channel Discord TextChannel
  * @param embedData Embed structure
  * @param replacements Array of tuples: [placeholder, value]
+ * @param plainReplacements Replacements for the title, author, footer and field names. Discord never
+ *   renders mentions there, so pass plain text (e.g. a username) instead. Defaults to `replacements`.
  * @returns The sent message, so callers can store or delete it later.
  */
 export async function sendEmbed(
   channel: TextChannel,
   embedData: EmbedData,
-  replacements: [string, string][] = []
+  replacements: [string, string][] = [],
+  plainReplacements: [string, string][] = replacements
 ): Promise<Message> {
-  const replaceAll = (text: string) => {
+  const applyReplacements = (text: string, pairs: [string, string][]) => {
     let result = text;
-    for (const [key, value] of replacements) {
+    for (const [key, value] of pairs) {
       result = result.split(key).join(value);
     }
     return result;
   };
+  const replaceAll = (text: string) => applyReplacements(text, replacements);
+  const replacePlain = (text: string) => applyReplacements(text, plainReplacements);
 
   const e = new EmbedBuilder();
 
   if (embedData.color) e.setColor((embedData.color as ColorResolvable) ?? '#2F3136');
-  if (embedData.title) e.setTitle(replaceAll(embedData.title));
+  if (embedData.title) e.setTitle(replacePlain(embedData.title));
   if (embedData.titleUrl) e.setURL(replaceAll(embedData.titleUrl));
   if (embedData.description) e.setDescription(replaceAll(embedData.description));
   if (embedData.author?.name) {
     e.setAuthor({
-      name: replaceAll(embedData.author.name),
+      name: replacePlain(embedData.author.name),
       iconURL: embedData.author.icon || undefined,
     });
   }
@@ -37,7 +42,7 @@ export async function sendEmbed(
   if (embedData.image) e.setImage(embedData.image);
   if (embedData.footer?.text || embedData.footer?.icon) {
     e.setFooter({
-      text: embedData.footer?.text ? replaceAll(embedData.footer.text) : '',
+      text: embedData.footer?.text ? replacePlain(embedData.footer.text) : '',
       iconURL: embedData.footer?.icon || undefined,
     });
   }
@@ -46,7 +51,7 @@ export async function sendEmbed(
       embedData.fields
         .filter((f) => f.name && f.value)
         .map((f) => ({
-          name: replaceAll(f.name),
+          name: replacePlain(f.name),
           value: replaceAll(f.value),
           inline: f.inline ?? false,
         }))
