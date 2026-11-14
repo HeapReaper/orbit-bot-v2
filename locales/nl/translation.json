@@ -5,6 +5,7 @@
   "user": "Gebruiker",
   "message": "Bericht",
   "message_deleted": "Bericht verwijderd",
+  "message_content_unavailable": "Inhoud niet beschikbaar (bericht stond niet in de cache)",
   "deleted": "verwijderd",
   "none": "Geen",
   "messages_deleted": "Berichten verwijderd",

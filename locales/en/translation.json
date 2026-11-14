@@ -5,6 +5,7 @@
   "user": "User",
   "message": "Message",
   "message_deleted": "Message deleted",
+  "message_content_unavailable": "Content unavailable (message was not cached)",
   "deleted": "deleted",
   "none": "None",
   "messages_deleted": "Messages deleted",
