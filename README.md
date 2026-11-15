@@ -1,5 +1,9 @@
 # Orbit Bot V2
 
+> [!NOTE]
+> This repo comes from Orbit V1, which was mostly written by humans. AI has been used to convert V1 to the correct V2 structure.
+> Most commits are human written
+
 Orbit V2, without memory leak this time
 
 ## Running
